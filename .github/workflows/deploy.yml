@@ -2,28 +2,33 @@
 #   𝑺𝒂𝒆𝒆𝒅 𝑩𝒐𝒕 🛡️ - ملف التشغيل على GitHub Actions
 # ====================================================
 
+
 name: تشغيل سعيد بوت 🛡️
 
 on:
+  workflow_dispatch:
   schedule:
     - cron: '0 * * * *'
-  workflow_dispatch:
 
 jobs:
-  run-bot:
+  bot:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     
     steps:
     - name: تحميل الكود
       uses: actions/checkout@v4
-      
+    
     - name: تثبيت Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '18'
-        
-    - name: تثبيت المكتبات (مع تجاهل خطأ التوافق)
-      run: npm install --legacy-peer-deps
+        node-version: 18
+    
+    - name: حذف package-lock.json (إن وجد)
+      run: rm -f package-lock.json
+    
+    - name: تثبيت المكتبات
+      run: npm install --legacy-peer-deps --force
       
     - name: تشغيل البوت
       env:
