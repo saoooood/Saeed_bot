@@ -2,35 +2,25 @@
 #   𝑺𝒂𝒆𝒆𝒅 𝑩𝒐𝒕 🛡️ - ملف التشغيل على GitHub Actions
 # ====================================================
 
-
-name: تشغيل سعيد بوت 🛡️
+mkdir -p .github/workflows
+cat > .github/workflows/deploy.yml << 'EOF'
+name: تشغيل سعيد بوت
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 * * * *'
+    - cron: '0 */6 * * *'
 
 jobs:
   bot:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    
     steps:
-    - name: تحميل الكود
-      uses: actions/checkout@v4
-    
-    - name: تثبيت Node.js
-      uses: actions/setup-node@v4
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
       with:
-        node-version: 18
-    
-    - name: حذف package-lock.json (إن وجد)
-      run: rm -f package-lock.json
-    
-    - name: تثبيت المكتبات
-      run: npm install --legacy-peer-deps --force
-      
-    - name: تشغيل البوت
+        node-version: '18'
+    - run: npm install --legacy-peer-deps
+    - run: node index.js
       env:
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-      run: node index.js
+EOF
