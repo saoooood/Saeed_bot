@@ -1,0 +1,22 @@
+index.js
+package.json
+settings.js
+.env
+.gitignore
+README.md
+commands/
+├── admin.js
+├── ai.js
+├── anime.js
+├── call_commands.js
+├── fun.js
+├── group_events.js
+├── handler.js
+├── info.js
+├── media.js
+├── protection.js
+└── utils.js
+data/
+└── (فارغ)
+session/
+└── (فارغ)
