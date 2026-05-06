@@ -8,6 +8,7 @@
 //   𝑺𝒂𝒆𝒆𝒅 𝑩𝒐𝒕 🛡️ - ربط عبر رقم الهاتف
 // ====================================================
 
+
 require('dotenv').config();
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
 const { Boom } = require('@hapi/boom');
@@ -31,7 +32,7 @@ async function startBot() {
   if (!sock.authState.creds.registered) {
     console.log('\n📱 رقمك الدولي (بدون + أو أصفار):');
     console.log('مثال: 967770179625\n');
-    const phoneNumber = await question('الرقم:967770179625');
+    const phoneNumber = await question('الرقم: ');
     const formatted = phoneNumber.replace(/[^0-9]/g, '');
     console.log(`\n✅ جاري إرسال الرمز إلى ${formatted}...`);
     
@@ -52,3 +53,6 @@ async function startBot() {
       else startBot();
     }
   });
+}
+
+startBot();
