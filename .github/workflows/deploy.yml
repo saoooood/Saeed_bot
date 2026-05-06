@@ -20,4 +20,7 @@ jobs:
     - run: npm install --legacy-peer-deps
     - run: node index.js
       env:
+       
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+       
+        PHONE_NUMBER: ${{ secrets.PHONE_NUMBER }}
