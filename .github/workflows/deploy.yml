@@ -6,16 +6,15 @@ name: تشغيل سعيد بوت 🛡️
 
 on:
   schedule:
-    # يشغل البوت كل ساعة (مجاناً)
     - cron: '0 * * * *'
-  workflow_dispatch:  # يسمح لك تشغيله يدوياً من موقع GitHub
+  workflow_dispatch:
 
 jobs:
   run-bot:
     runs-on: ubuntu-latest
     
     steps:
-    - name: تحميل كود البوت
+    - name: تحميل الكود
       uses: actions/checkout@v4
       
     - name: تثبيت Node.js
@@ -23,10 +22,10 @@ jobs:
       with:
         node-version: '18'
         
-    - name: تثبيت المكتبات المطلوبة
-      run: npm install
+    - name: تثبيت المكتبات (مع تجاهل خطأ التوافق)
+      run: npm install --legacy-peer-deps
       
     - name: تشغيل البوت
       env:
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-      run: npm start
+      run: node index.js
