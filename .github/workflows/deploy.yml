@@ -1,0 +1,32 @@
+# ====================================================
+#   𝑺𝒂𝒆𝒆𝒅 𝑩𝒐𝒕 🛡️ - ملف التشغيل على GitHub Actions
+# ====================================================
+
+name: تشغيل سعيد بوت 🛡️
+
+on:
+  schedule:
+    # يشغل البوت كل ساعة (مجاناً)
+    - cron: '0 * * * *'
+  workflow_dispatch:  # يسمح لك تشغيله يدوياً من موقع GitHub
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: تحميل كود البوت
+      uses: actions/checkout@v4
+      
+    - name: تثبيت Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        
+    - name: تثبيت المكتبات المطلوبة
+      run: npm install
+      
+    - name: تشغيل البوت
+      env:
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      run: npm start
