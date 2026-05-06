@@ -32,8 +32,8 @@ async function startBot() {
   if (!sock.authState.creds.registered) {
     console.log('\n📱 رقمك الدولي (بدون + أو أصفار):');
     console.log('مثال: 967770179625\n');
-    const phoneNumber = await question('الرقم: ');
-    const formatted = phoneNumber.replace(/[^0-9]/g, '967770179625');
+    const phoneNumber = await question('الرقم:967770179625 ');
+    const formatted = phoneNumber.replace(/[^0-9]/g, '');
     console.log(`\n✅ جاري إرسال الرمز إلى ${formatted}...`);
     
     const code = await sock.requestPairingCode(formatted);
