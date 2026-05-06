@@ -8,15 +8,9 @@
 //   𝑺𝒂𝒆𝒆𝒅 𝑩𝒐𝒕 🛡️ - ربط عبر رقم الهاتف
 // ====================================================
 
-
 require('dotenv').config();
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
 const { Boom } = require('@hapi/boom');
-const readline = require('readline');
-
-// للاستخدام في GitHub Actions
-const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-const question = (text) => new Promise((resolve) => rl.question(text, resolve));
 
 async function startBot() {
   const { state, saveCreds } = await useMultiFileAuthState('./session');
@@ -30,16 +24,23 @@ async function startBot() {
   sock.ev.on('creds.update', saveCreds);
 
   if (!sock.authState.creds.registered) {
-    console.log('\n📱 رقمك الدولي (بدون + أو أصفار):');
-    console.log('مثال: 967770179625\n');
-    const phoneNumber = await question('الرقم:967770179625 ');
+    // خذ الرقم من متغير البيئة PHONE_NUMBER
+    const phoneNumber = process.env.PHONE_NUMBER;
+    
+    if (!phoneNumber) {
+      console.error('❌ خطأ: الرجاء إضافة PHONE_NUMBER في Secrets');
+      process.exit(1);
+    }
+    
     const formatted = phoneNumber.replace(/[^0-9]/g, '');
-    console.log(`\n✅ جاري إرسال الرمز إلى ${formatted}...`);
+    console.log(`✅ جاري إرسال الرمز إلى ${formatted}...`);
     
     const code = await sock.requestPairingCode(formatted);
     console.log(`\n🔐 رمز الاقتران: ${code}\n`);
     console.log('افتح واتساب ← الأجهزة المرتبطة ← ربط جهاز وأدخل هذا الرمز');
-    rl.close();
+    
+    // انتظر 2 دقيقة عشان المستخدم يدخل الرمز
+    await new Promise(resolve => setTimeout(resolve, 120000));
   }
 
   sock.ev.on('connection.update', (update) => {
