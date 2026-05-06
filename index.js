@@ -33,7 +33,7 @@ const settings = require('./settings');
 const { handleMessages } = require('./commands/handler');
 const { handleGroupUpdate } = require('./commands/group_events');
 
-// ===== تخزين الرسائل =====
+// ==== تخزين الرسائل =====
 const store = {
   _data: { messages: {} },
   readFromFile() {
