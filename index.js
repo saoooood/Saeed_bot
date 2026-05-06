@@ -4,36 +4,32 @@
 //   المطور والمالك: 967770179625
 // ====================================================
 
+// ====================================================
+//   𝑺𝒂𝒆𝒆𝒅 𝑩𝒐𝒕 🛡️ - ربط عبر رقم الهاتف
+// ====================================================
+
 require('dotenv').config();
+const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, jidNormalizedUser } = require('@whiskeysockets/baileys');
 const { Boom } = require('@hapi/boom');
 const fs = require('fs');
 const path = require('path');
 const chalk = require('chalk');
 const pino = require('pino');
 const readline = require('readline');
-const NodeCache = require('node-cache');
-const { parsePhoneNumber } = require('libphonenumber-js');
-
-const {
-  default: makeWASocket,
-  useMultiFileAuthState,
-  DisconnectReason,
-  fetchLatestBaileysVersion,
-  generateMessageID,
-  downloadContentFromMessage,
-  jidDecode,
-  proto,
-  jidNormalizedUser,
-  makeCacheableSignalKeyStore,
-  delay,
-  getContentType
-} = require('@whiskeysockets/baileys');
 
 const settings = require('./settings');
 const { handleMessages } = require('./commands/handler');
 const { handleGroupUpdate } = require('./commands/group_events');
 
-// ==== تخزين الرسائل =====
+// ===== إدخال رقم الهاتف =====
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout
+});
+
+const question = (text) => new Promise((resolve) => rl.question(text, resolve));
+
+// ===== تخزين الرسائل =====
 const store = {
   _data: { messages: {} },
   readFromFile() {
@@ -69,15 +65,6 @@ const store = {
 store.readFromFile();
 setInterval(() => store.writeToFile(), 10000);
 
-// ===== مراقبة الذاكرة =====
-setInterval(() => {
-  const used = process.memoryUsage().rss / 1024 / 1024;
-  if (used > 500) {
-    console.log(chalk.red('⚠️ الرام عالي مرة (>500MB)، جاري إعادة التشغيل...'));
-    process.exit(1);
-  }
-}, 30000);
-
 // ===== نظام مكافحة السبام =====
 const spamDB = new Map();
 function isSpam(jid) {
@@ -91,59 +78,61 @@ function isSpam(jid) {
   return false;
 }
 
-// ===== حماية من الأخطاء =====
+// ===== معالجة الأخطاء =====
 process.on('unhandledRejection', err => console.error(chalk.red('خطأ غير متوقع:'), err?.message || err));
 process.on('uncaughtException', err => console.error(chalk.red('خطأ خطير:'), err?.message || err));
 
-// ===== بدء البوت =====
+// ===== بدء البوت مع الربط بالرقم =====
 async function startBot() {
   try {
     const { version } = await fetchLatestBaileysVersion();
     const { state, saveCreds } = await useMultiFileAuthState('./session');
-    const msgRetryCounterCache = new NodeCache();
-
+    
     const sock = makeWASocket({
       version,
       logger: pino({ level: 'silent' }),
-      printQRInTerminal: true,
       browser: ['سعيد بوت 🛡️', 'Chrome', '120.0.0'],
-      auth: {
-        creds: state.creds,
-        keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'fatal' }).child({ level: 'fatal' }))
-      },
+      auth: state,
+      printQRInTerminal: false,  // إيقاف QR Code
       markOnlineOnConnect: true,
       generateHighQualityLinkPreview: true,
-      syncFullHistory: false,
-      getMessage: async (key) => {
-        const jid = jidNormalizedUser(key.remoteJid);
-        const msg = store.loadMessage(jid, key.id);
-        return msg?.message || '';
-      },
-      msgRetryCounterCache,
-      defaultQueryTimeoutMs: 60000,
-      connectTimeoutMs: 60000,
-      keepAliveIntervalMs: 10000
     });
 
     store.bind(sock.ev);
     sock.ev.on('creds.update', saveCreds);
 
-    // ===== رفض المكالمات وطرد المتصل =====
+    // ===== طلب رقم الهاتف للربط =====
+    if (!sock.authState.creds.registered) {
+      console.log(chalk.cyan('\n🛡️ مرحباً بك في سعيد بوت\n'));
+      const phoneNumber = await question(chalk.yellow('📱 أدخل رقم هاتفك بالصيغة الدولية (مثال: 967770179625): '));
+      rl.close();
+      
+      const formattedNumber = phoneNumber.replace(/[^0-9]/g, '');
+      console.log(chalk.green(`✅ جاري إرسال رمز الاقتران للرقم: ${formattedNumber}`));
+      
+      setTimeout(async () => {
+        const code = await sock.requestPairingCode(formattedNumber);
+        console.log(chalk.magenta(`\n🔐 رمز الاقتران الخاص بك: ${code}\n`));
+        console.log(chalk.cyan('افتح واتساب ← الأجهزة المرتبطة ← ربط جهاز ← أدخل الرمز'));
+      }, 1000);
+    }
+
+    // ===== رفض المكالمات =====
     sock.ev.on('call', async (calls) => {
       for (const call of calls) {
         if (call.status === 'offer' && settings.antiCall) {
           try {
             await sock.rejectCall(call.id, call.from);
             await sock.sendMessage(call.from, {
-              text: `🚫 *سعيد بوت 🛡️ - ممنوع المكالمات*\n\nيا صاحبي، البوت ما يقبل المكالمات!\nاذا كنت بمجموعة وكاليت، حتطرد مع السلامة.`
+              text: `🚫 *سعيد بوت 🛡️ - ممنوع المكالمات*\n\nيا صاحبي، البوت ما يقبل المكالمات!`
             });
             console.log(chalk.yellow('📵 تم رفض مكالمة من:', call.from));
-          } catch (e) { console.error('Call reject error:', e.message); }
+          } catch (e) {}
         }
       }
     });
 
-    // ===== أحداث المجموعات (ترحيب / توديع) =====
+    // ===== أحداث المجموعات =====
     sock.ev.on('group-participants.update', async (update) => {
       try { await handleGroupUpdate(sock, update); }
       catch (err) { console.error('Group update error:', err.message); }
@@ -157,33 +146,23 @@ async function startBot() {
         mek.message = (Object.keys(mek.message)[0] === 'ephemeralMessage')
           ? mek.message.ephemeralMessage.message
           : mek.message;
-
         if (mek.key?.remoteJid === 'status@broadcast') return;
-        if (mek.key?.id?.startsWith('BAE5') && mek.key.id.length === 16) return;
-
         const sender = mek.key.participant || mek.key.remoteJid;
         if (isSpam(sender)) return;
-
         await handleMessages(sock, chatUpdate, store);
       } catch (err) { console.error('Messages upsert error:', err.message); }
     });
 
     // ===== حالة الاتصال =====
     sock.ev.on('connection.update', async (s) => {
-      const { connection, lastDisconnect, qr } = s;
-      if (qr) console.log(chalk.cyan('\n📱 امسح QR بكود واتساب...\n'));
-      if (connection === 'connecting') console.log(chalk.yellow('🔄 جاري الاتصال بالواتساب...'));
+      const { connection, lastDisconnect } = s;
       if (connection === 'open') {
         console.log(chalk.green('\n✅ سعيد بوت 🛡️ اشتغل وجاهز! يلا بنا\n'));
-        const botNum = sock.user.id.split(':')[0] + '@s.whatsapp.net';
-        await sock.sendMessage(botNum, {
-          text: `╔══════════════════════╗\n║   𝑺𝒂𝒆𝒆𝒅 𝑩𝒐𝒕 🛡️ v3.0.0   ║\n╚══════════════════════╝\n\n✅ البوت شغال تمام!\n📦 الإصدار: v3.0.0\n⏰ الوقت: ${new Date().toLocaleString('ar-YE')}\n🚀 الأوامر: 600+ أمر\n🤖 الذكاء الاصطناعي: مفعل\n🛡️ الحماية: مفعلة\n\n👑 المالك: +967 770 179 625\n👨‍💻 المطور: +967 770 179 625`
-        });
       }
       if (connection === 'close') {
         const reason = new Boom(lastDisconnect?.error)?.output?.statusCode;
         if (reason === DisconnectReason.loggedOut) {
-          console.log(chalk.red('❌ تم تسجيل الخروج. امسح QR مرة ثانية.'));
+          console.log(chalk.red('❌ تم تسجيل الخروج. امسح QR مجدداً.'));
           process.exit(0);
         } else {
           console.log(chalk.yellow('🔁 جاري إعادة الاتصال...'));
@@ -208,12 +187,11 @@ async function startBot() {
   }
 }
 
-// ===== تشغيل البوت =====
 console.log(chalk.magenta(`
 ╔══════════════════════════════════╗
 ║      𝑺𝒂𝒆𝒆𝒅 𝑩𝒐𝒕 🛡️ - جاري التشغيل     ║
-║         بوت واتساب يمني          ║
-║      المطور: +967 770 179 625    ║
+║      الربط عبر رقم الهاتف          ║
+║      المطور: +967 770 179 625     ║
 ╚══════════════════════════════════╝
 `));
 
