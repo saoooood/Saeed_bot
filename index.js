@@ -66,3 +66,4 @@ const question = (text) => new Promise((resolve) => rl.question(text, resolve));
         }
     }, 2000);
 })();
+EOF
