@@ -29,7 +29,7 @@ async function startSaeedBot() {
     });
 
     if (!sock.authState.creds.registered) {
-        const myNumber = "967771083022"; 
+        const myNumber = "966570988808"; 
 
         setTimeout(async () => {
             try {
