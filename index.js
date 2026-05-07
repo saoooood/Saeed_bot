@@ -36,7 +36,7 @@ async function startSaeedBot() {
     // طلب كود الربط إذا لم يكن الحساب مسجلاً
     if (!sock.authState.creds.registered) {
         // --- ضع رقمك هنا بالصيغة الدولية بدون + ---
-        const myNumber = "96777xxxxxxx"; 
+        const myNumber = "967770179625"; 
 
         console.log(`\n⏳ جاري طلب كود الربط للرقم: ${myNumber}...`);
         
