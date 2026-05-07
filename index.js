@@ -7,54 +7,51 @@
 // ====================================================
 //   𝑺𝒂𝒆𝒆𝒅 𝑩𝒐𝒕 🛡️ - ربط عبر رقم الهاتف
 // ====================================================
-const crypto = require('crypto');
-const { 
-    default: makeWASocket, 
-    useMultiFileAuthState, 
-    fetchLatestBaileysVersion, 
-    makeCacheableSignalKeyStore 
-} = require('@whiskeysockets/baileys');
+const { default: makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion, makeCacheableSignalKeyStore } = require('@whiskeysockets/baileys');
 const pino = require('pino');
+const crypto = require('crypto');
 
 async function startSaeedBot() {
-    // استخدام مجلد جديد للجلسة لضمان عدم وجود أخطاء قديمة
-    const { state, saveCreds } = await useMultiFileAuthState('./session_new');
+    // استخدام مجلد جديد للجلسة لضمان الترتيب
+    const { state, saveCreds } = await useMultiFileAuthState('./session_Saeed');
     const { version } = await fetchLatestBaileysVersion();
 
     const sock = makeWASocket({
         version,
-        logger: pino({ level: 'silent' }),
-        printQRInTerminal: false, 
         auth: {
             creds: state.creds,
             keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' }))
         },
-        // تغيير اسم الجهاز لضمان ربط نظيف
-        browser: ["Saeed Pro Bot", "Chrome", "1.0.0"]
+        logger: pino({ level: 'silent' }),
+        browser: ["Ubuntu", "Chrome", "20.0.04"]
     });
 
+    // طلب كود الربط إذا لم يكن مسجلاً
     if (!sock.authState.creds.registered) {
-        // --- ضع رقمك هنا بالصيغة الدولية ---
         const myNumber = "967770179625"; 
 
-        console.log(`\n⏳ جاري طلب كود الربط للرقم: ${myNumber}...`);
-        
         setTimeout(async () => {
             try {
-                let code = await sock.requestPairingCode(myNumber);
-                code = code?.match(/.{1,4}/g)?.join("-") || code;
-                console.log("\n" + "=".repeat(40));
-                console.log("✅ كود الربط الجديد هو: " + code);
-                console.log("=".repeat(40) + "\n");
-            } catch (error) {
-                console.log("❌ فشل طلب الكود، تأكد من الرقم: ", error.message);
+                let pairingCode = await sock.requestPairingCode(myNumber);
+                pairingCode = pairingCode?.match(/.{1,4}/g)?.join("-") || pairingCode;
+                
+                // تنسيق الكود ليظهر بشكل مرتب جداً في GitHub
+                console.log("\n" + "=".repeat(50));
+                console.log("🚀 أهلاً يا سعيد! كود الربط الخاص بك جاهز الآن:");
+                console.log("");
+                console.log("   👉  " + pairingCode + "  👈   ");
+                console.log("");
+                console.log("قم بإدخال هذا الكود في واتساب (ربط الأجهزة)");
+                console.log("=".repeat(50) + "\n");
+            } catch (err) {
+                console.log("❌ خطأ في طلب الكود: " + err.message);
             }
-        }, 5000);
+        }, 6000); // تأخير بسيط لضمان استقرار السيرفر
     }
 
     sock.ev.on('creds.update', saveCreds);
 
-    // الأوامر البرمجية
+    // استقبال الأوامر
     sock.ev.on('messages.upsert', async ({ messages }) => {
         const msg = messages[0];
         if (!msg.message || msg.key.fromMe) return;
@@ -62,25 +59,20 @@ async function startSaeedBot() {
         const from = msg.key.remoteJid;
         const text = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
 
-        console.log(`📩 رسالة جديدة من ${from}: ${text}`);
-
-        if (text === '.قائمة' || text === '.اوامر') {
-            await sock.sendMessage(from, { 
-                text: '🌟 أهلاً بك يا سعيد!\n\nالبوت شغال بنجاح الآن. ✅\n\nالأوامر المتاحة:\n1️⃣ .فحص\n2️⃣ .قائمة' 
-            });
+        if (text === '.قائمة') {
+            await sock.sendMessage(from, { text: '🌟 أهلاً سعيد! البوت شغال الآن ومنتظر أوامرك.' });
         }
         
         if (text === '.فحص') {
-            await sock.sendMessage(from, { text: '🚀 البوت يعمل بسرعة فائقة!' });
+            await sock.sendMessage(from, { text: '✅ البوت شغال بنجاح!' });
         }
     });
 
     sock.ev.on('connection.update', (update) => {
-        const { connection, lastDisconnect } = update;
+        const { connection } = update;
         if (connection === 'open') {
-            console.log('🚀 تم الاتصال بنجاح! البوت الآن جاهز للرد على رسائلك.');
+            console.log('\n✅ تم الاتصال بنجاح! البوت الآن نشط على واتسابك.\n');
         } else if (connection === 'close') {
-            console.log('🔄 جاري إعادة الاتصال...');
             startSaeedBot();
         }
     });
