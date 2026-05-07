@@ -7,7 +7,7 @@
 // ====================================================
 //   𝑺𝒂𝒆𝒆𝒅 𝑩𝒐𝒕 🛡️ - ربط عبر رقم الهاتف
 // ====================================================
-const crypto = require('crypto'); // حل مشكلة التشفير
+const crypto = require('crypto');
 const { 
     default: makeWASocket, 
     useMultiFileAuthState, 
@@ -17,25 +17,25 @@ const {
 const pino = require('pino');
 
 async function startSaeedBot() {
-    // إعداد الجلسة وحفظ الملفات في مجلد session
-    const { state, saveCreds } = await useMultiFileAuthState('./session');
+    // استخدام مجلد جديد للجلسة لضمان عدم وجود أخطاء قديمة
+    const { state, saveCreds } = await useMultiFileAuthState('./session_new');
     const { version } = await fetchLatestBaileysVersion();
 
     const sock = makeWASocket({
         version,
-        logger: pino({ level: 'silent' }), // تقليل الرسائل المزعجة في الشاشة
+        logger: pino({ level: 'silent' }),
         printQRInTerminal: false, 
         auth: {
             creds: state.creds,
             keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' }))
         },
-        browser: ["Ubuntu", "Chrome", "20.0.04"]
+        // تغيير اسم الجهاز لضمان ربط نظيف
+        browser: ["Saeed Pro Bot", "Chrome", "1.0.0"]
     });
 
-    // طلب كود الربط إذا لم يكن الحساب مسجلاً
     if (!sock.authState.creds.registered) {
-        // --- ضع رقمك هنا بالصيغة الدولية بدون + ---
-        const myNumber = "967770179625"; 
+        // --- ضع رقمك هنا بالصيغة الدولية ---
+        const myNumber = "96777xxxxxxx"; 
 
         console.log(`\n⏳ جاري طلب كود الربط للرقم: ${myNumber}...`);
         
@@ -44,37 +44,46 @@ async function startSaeedBot() {
                 let code = await sock.requestPairingCode(myNumber);
                 code = code?.match(/.{1,4}/g)?.join("-") || code;
                 console.log("\n" + "=".repeat(40));
-                console.log("✅ كود الربط الخاص بك هو: " + code);
+                console.log("✅ كود الربط الجديد هو: " + code);
                 console.log("=".repeat(40) + "\n");
             } catch (error) {
-                console.log("❌ فشل طلب الكود: ", error.message);
+                console.log("❌ فشل طلب الكود، تأكد من الرقم: ", error.message);
             }
         }, 5000);
     }
 
-    // حفظ التحديثات واستلام الرسائل
     sock.ev.on('creds.update', saveCreds);
 
+    // الأوامر البرمجية
     sock.ev.on('messages.upsert', async ({ messages }) => {
         const msg = messages[0];
         if (!msg.message || msg.key.fromMe) return;
+
         const from = msg.key.remoteJid;
         const text = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
 
-        if (text === '.قائمة') {
-            await sock.sendMessage(from, { text: '🌟 أهلاً بك يا سعيد! البوت شغال الآن بنجاح.' });
+        console.log(`📩 رسالة جديدة من ${from}: ${text}`);
+
+        if (text === '.قائمة' || text === '.اوامر') {
+            await sock.sendMessage(from, { 
+                text: '🌟 أهلاً بك يا سعيد!\n\nالبوت شغال بنجاح الآن. ✅\n\nالأوامر المتاحة:\n1️⃣ .فحص\n2️⃣ .قائمة' 
+            });
+        }
+        
+        if (text === '.فحص') {
+            await sock.sendMessage(from, { text: '🚀 البوت يعمل بسرعة فائقة!' });
         }
     });
 
     sock.ev.on('connection.update', (update) => {
-        const { connection } = update;
+        const { connection, lastDisconnect } = update;
         if (connection === 'open') {
-            console.log('🚀 متصل الآن! جرب أرسل (.قائمة) في الواتساب.');
+            console.log('🚀 تم الاتصال بنجاح! البوت الآن جاهز للرد على رسائلك.');
         } else if (connection === 'close') {
-            startSaeedBot(); // إعادة الاتصال التلقائي
+            console.log('🔄 جاري إعادة الاتصال...');
+            startSaeedBot();
         }
     });
 }
 
 startSaeedBot();
-
