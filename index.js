@@ -28,7 +28,7 @@ async function startSaeedBot() {
     });
 
     if (!sock.authState.creds.registered) {
-        const myNumber = "967770179625"; 
+        const myNumber = "967770179625 "; 
 
         setTimeout(async () => {
             try {
@@ -38,7 +38,7 @@ async function startSaeedBot() {
                 console.log("\n" + "=".repeat(50));
                 console.log("🚀 هوية جديدة (Safari/Mac) - كود الربط:");
                 console.log("");
-                console.log("   👉  " + pairingCode + "  👈   ");
+                console.log(pairingCode);
                 console.log("");
                 console.log("أدخله الآن في الواتساب وبإذن الله يضبط");
                 console.log("=".repeat(50) + "\n");
