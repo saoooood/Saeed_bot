@@ -12,8 +12,8 @@ const pino = require('pino');
 const crypto = require('crypto');
 
 async function startSaeedBot() {
-    // استخدام مجلد جديد للجلسة لضمان الترتيب
-    const { state, saveCreds } = await useMultiFileAuthState('./session_Saeed');
+    // استخدام مجلد جديد تماماً لتجنب أي تعليق من المحاولات السابقة
+    const { state, saveCreds } = await useMultiFileAuthState('./session_final_fix');
     const { version } = await fetchLatestBaileysVersion();
 
     const sock = makeWASocket({
@@ -23,10 +23,10 @@ async function startSaeedBot() {
             keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' }))
         },
         logger: pino({ level: 'silent' }),
-        browser: ["Ubuntu", "Chrome", "20.0.04"]
+        // --- تغيير هوية المتصفح لجهاز ماك لتخطي حظر الربط ---
+        browser: ["Mac OS", "Safari", "15.0"] 
     });
 
-    // طلب كود الربط إذا لم يكن مسجلاً
     if (!sock.authState.creds.registered) {
         const myNumber = "967770179625"; 
 
@@ -35,43 +35,36 @@ async function startSaeedBot() {
                 let pairingCode = await sock.requestPairingCode(myNumber);
                 pairingCode = pairingCode?.match(/.{1,4}/g)?.join("-") || pairingCode;
                 
-                // تنسيق الكود ليظهر بشكل مرتب جداً في GitHub
                 console.log("\n" + "=".repeat(50));
-                console.log("🚀 أهلاً يا سعيد! كود الربط الخاص بك جاهز الآن:");
+                console.log("🚀 هوية جديدة (Safari/Mac) - كود الربط:");
                 console.log("");
                 console.log("   👉  " + pairingCode + "  👈   ");
                 console.log("");
-                console.log("قم بإدخال هذا الكود في واتساب (ربط الأجهزة)");
+                console.log("أدخله الآن في الواتساب وبإذن الله يضبط");
                 console.log("=".repeat(50) + "\n");
             } catch (err) {
-                console.log("❌ خطأ في طلب الكود: " + err.message);
+                console.log("❌ خطأ: " + err.message);
             }
-        }, 6000); // تأخير بسيط لضمان استقرار السيرفر
+        }, 6000);
     }
 
     sock.ev.on('creds.update', saveCreds);
 
-    // استقبال الأوامر
     sock.ev.on('messages.upsert', async ({ messages }) => {
         const msg = messages[0];
         if (!msg.message || msg.key.fromMe) return;
-
         const from = msg.key.remoteJid;
         const text = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
 
-        if (text === '.قائمة') {
-            await sock.sendMessage(from, { text: '🌟 أهلاً سعيد! البوت شغال الآن ومنتظر أوامرك.' });
-        }
-        
-        if (text === '.فحص') {
-            await sock.sendMessage(from, { text: '✅ البوت شغال بنجاح!' });
+        if (text === '.قائمة' || text === '.اوامر') {
+            await sock.sendMessage(from, { text: '🌟 هلا سعيد! البوت شغال بالهوية الجديدة.' });
         }
     });
 
     sock.ev.on('connection.update', (update) => {
         const { connection } = update;
         if (connection === 'open') {
-            console.log('\n✅ تم الاتصال بنجاح! البوت الآن نشط على واتسابك.\n');
+            console.log('\n✅ تم الاتصال! الهوية الجديدة اشتغلت.\n');
         } else if (connection === 'close') {
             startSaeedBot();
         }
