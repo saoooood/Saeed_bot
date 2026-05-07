@@ -35,7 +35,7 @@ async function startSaeedBot() {
 
     if (!sock.authState.creds.registered) {
         // --- ضع رقمك هنا بالصيغة الدولية ---
-        const myNumber = "96777xxxxxxx"; 
+        const myNumber = "967770179625"; 
 
         console.log(`\n⏳ جاري طلب كود الربط للرقم: ${myNumber}...`);
         
