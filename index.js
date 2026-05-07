@@ -7,53 +7,74 @@
 // ====================================================
 //   𝑺𝒂𝒆𝒆𝒅 𝑩𝒐𝒕 🛡️ - ربط عبر رقم الهاتف
 // ====================================================
-const crypto = require('crypto');
-require('dotenv').config();
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
-const { Boom } = require('@hapi/boom');
+const crypto = require('crypto'); // حل مشكلة التشفير
+const { 
+    default: makeWASocket, 
+    useMultiFileAuthState, 
+    fetchLatestBaileysVersion, 
+    makeCacheableSignalKeyStore 
+} = require('@whiskeysockets/baileys');
+const pino = require('pino');
 
-async function startBot() {
-  const { state, saveCreds } = await useMultiFileAuthState('./session');
-  const sock = makeWASocket({
-    auth: state,
-    printQRInTerminal: false,
-    browser: ['سعيد بوت', 'Chrome', '120.0.0'],
-    logger: require('pino')({ level: 'silent' }),
-  });
+async function startSaeedBot() {
+    // إعداد الجلسة وحفظ الملفات في مجلد session
+    const { state, saveCreds } = await useMultiFileAuthState('./session');
+    const { version } = await fetchLatestBaileysVersion();
 
-  sock.ev.on('creds.update', saveCreds);
+    const sock = makeWASocket({
+        version,
+        logger: pino({ level: 'silent' }), // تقليل الرسائل المزعجة في الشاشة
+        printQRInTerminal: false, 
+        auth: {
+            creds: state.creds,
+            keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' }))
+        },
+        browser: ["Ubuntu", "Chrome", "20.0.04"]
+    });
 
-  if (!sock.authState.creds.registered) {
-    // خذ الرقم من متغير البيئة PHONE_NUMBER
-    const phoneNumber = process.env.PHONE_NUMBER;
-    
-    if (!phoneNumber) {
-      console.error('❌ خطأ: الرجاء إضافة PHONE_NUMBER في Secrets');
-      process.exit(1);
+    // طلب كود الربط إذا لم يكن الحساب مسجلاً
+    if (!sock.authState.creds.registered) {
+        // --- ضع رقمك هنا بالصيغة الدولية بدون + ---
+        const myNumber = "96777xxxxxxx"; 
+
+        console.log(`\n⏳ جاري طلب كود الربط للرقم: ${myNumber}...`);
+        
+        setTimeout(async () => {
+            try {
+                let code = await sock.requestPairingCode(myNumber);
+                code = code?.match(/.{1,4}/g)?.join("-") || code;
+                console.log("\n" + "=".repeat(40));
+                console.log("✅ كود الربط الخاص بك هو: " + code);
+                console.log("=".repeat(40) + "\n");
+            } catch (error) {
+                console.log("❌ فشل طلب الكود: ", error.message);
+            }
+        }, 5000);
     }
-    
-    const formatted = phoneNumber.replace(/[^0-9]/g, '');
-    console.log(`✅ جاري إرسال الرمز إلى ${formatted}...`);
-    
-    const code = await sock.requestPairingCode(formatted);
-    console.log(`\n🔐 رمز الاقتران: ${code}\n`);
-    console.log('افتح واتساب ← الأجهزة المرتبطة ← ربط جهاز وأدخل هذا الرمز');
-    
-    // انتظر 2 دقيقة عشان المستخدم يدخل الرمز
-    await new Promise(resolve => setTimeout(resolve, 120000));
-  }
 
-  sock.ev.on('connection.update', (update) => {
-    const { connection, lastDisconnect } = update;
-    if (connection === 'open') {
-      console.log('\n✅ سعيد بوت اشتغل وجاهز!\n');
-    }
-    if (connection === 'close') {
-      const reason = new Boom(lastDisconnect?.error)?.output?.statusCode;
-      if (reason === DisconnectReason.loggedOut) process.exit(0);
-      else startBot();
-    }
-  });
+    // حفظ التحديثات واستلام الرسائل
+    sock.ev.on('creds.update', saveCreds);
+
+    sock.ev.on('messages.upsert', async ({ messages }) => {
+        const msg = messages[0];
+        if (!msg.message || msg.key.fromMe) return;
+        const from = msg.key.remoteJid;
+        const text = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
+
+        if (text === '.قائمة') {
+            await sock.sendMessage(from, { text: '🌟 أهلاً بك يا سعيد! البوت شغال الآن بنجاح.' });
+        }
+    });
+
+    sock.ev.on('connection.update', (update) => {
+        const { connection } = update;
+        if (connection === 'open') {
+            console.log('🚀 متصل الآن! جرب أرسل (.قائمة) في الواتساب.');
+        } else if (connection === 'close') {
+            startSaeedBot(); // إعادة الاتصال التلقائي
+        }
+    });
 }
 
-startBot();
+startSaeedBot();
+
