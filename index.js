@@ -8,12 +8,11 @@
 //   𝑺𝒂𝒆𝒆𝒅 𝑩𝒐𝒕 🛡️ - ربط عبر رقم الهاتف
 // ====================================================
 
-const { default: makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion, makeCacheableSignalKeyStore } = require('@whiskeysockets/baileys');
+cconst { default: makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion, makeCacheableSignalKeyStore } = require('@whiskeysockets/baileys');
 const pino = require('pino');
 const crypto = require('crypto');
 
 async function startSaeedBot() {
-    // استخدام مجلد جديد تماماً لتجنب أي تعليق من المحاولات السابقة
     const { state, saveCreds } = await useMultiFileAuthState('./session_final_fix');
     const { version } = await fetchLatestBaileysVersion();
 
@@ -24,28 +23,17 @@ async function startSaeedBot() {
             keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' }))
         },
         logger: pino({ level: 'silent' }),
-        // --- تغيير هوية المتصفح لجهاز ماك لتخطي حظر الربط ---
         browser: ["Mac OS", "Safari", "15.0"] 
     });
 
     if (!sock.authState.creds.registered) {
-        const myNumber = "966570988808"; 
-
+        const myNumber = "967770179625"; 
         setTimeout(async () => {
             try {
                 let pairingCode = await sock.requestPairingCode(myNumber);
                 pairingCode = pairingCode?.match(/.{1,4}/g)?.join("-") || pairingCode;
-                
-                console.log("\n" + "=".repeat(50));
-                console.log("🚀 هوية جديدة (Safari/Mac) - كود الربط:");
-                console.log("");
-                console.log("   👉  " + pairingCode + "  👈   ");
-                console.log("");
-                console.log("أدخله الآن في الواتساب وبإذن الله يضبط");
-                console.log("=".repeat(50) + "\n");
-            } catch (err) {
-                console.log("❌ خطأ: " + err.message);
-            }
+                console.log("\n🚀 كود الربط: " + pairingCode + "\n");
+            } catch (err) { console.log("❌ خطأ: " + err.message); }
         }, 6000);
     }
 
@@ -58,18 +46,24 @@ async function startSaeedBot() {
         const text = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
 
         if (text === '.قائمة' || text === '.اوامر') {
-            await sock.sendMessage(from, { text: '🌟 هلا سعيد! البوت شغال بالهوية الجديدة.' });
+            await sock.sendMessage(from, { text: '🌟 هلا سعيد! البوت شغال الآن بنسبة 100% ولن يتوقف.' });
+        }
+        if (text === '.فحص') {
+            await sock.sendMessage(from, { text: '✅ البوت مستيقظ ويعمل!' });
         }
     });
 
     sock.ev.on('connection.update', (update) => {
         const { connection } = update;
         if (connection === 'open') {
-            console.log('\n✅ تم الاتصال! الهوية الجديدة اشتغلت.\n');
+            console.log('\n✅ تم الاتصال! البوت الآن نشط ولن يغلق.\n');
         } else if (connection === 'close') {
             startSaeedBot();
         }
     });
+
+    // --- السطر السحري لمنع السيرفر من الإغلاق ---
+    setInterval(() => { }, 1000 * 60 * 60); 
 }
 
 startSaeedBot();
