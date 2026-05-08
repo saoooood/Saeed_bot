@@ -1,23 +1,17 @@
 {
   "name": "saeed-bot",
   "version": "1.0.0",
-  "description": "WhatsApp Bot",
+  "description": "WhatsApp Bot for Saeed",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
-  }
-  "dependencies": {
-    "@whiskeysockets/baileys": "latest",
-    "pino": "^8.0.0",
-    "qrcode-terminal": "^0.12.0",
-    "crypto": "^1.0.1"
-  }
+  },
   "dependencies": {
     "@whiskeysockets/baileys": "latest",
     "pino": "^8.0.0",
     "pastebin-js": "latest",
-    "crypto": "^1.0.1"
+    "crypto": "^1.0.1",
+    "qrcode-terminal": "^0.12.0"
   }
 }
-
 
