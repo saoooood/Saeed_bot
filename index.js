@@ -8,12 +8,19 @@
 //   𝑺𝒂𝒆𝒆𝒅 𝑩𝒐𝒕 🛡️ - ربط عبر رقم الهاتف
 // ====================================================
 
-cconst { default: makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion, makeCacheableSignalKeyStore } = require('@whiskeysockets/baileys');
+const { default: makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion, makeCacheableSignalKeyStore } = require('@whiskeysockets/baileys');
 const pino = require('pino');
 const crypto = require('crypto');
+const http = require('http'); // مكتبة ضرورية لـ Render
+
+// إنشاء سيرفر بسيط لإيهام Render أن الخدمة تعمل
+http.createServer((req, res) => {
+    res.write('Saeed Bot is Running!');
+    res.end();
+}).listen(process.env.PORT || 3000);
 
 async function startSaeedBot() {
-    const { state, saveCreds } = await useMultiFileAuthState('./session_final_fix');
+    const { state, saveCreds } = await useMultiFileAuthState('./session_render');
     const { version } = await fetchLatestBaileysVersion();
 
     const sock = makeWASocket({
@@ -23,18 +30,20 @@ async function startSaeedBot() {
             keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' }))
         },
         logger: pino({ level: 'silent' }),
-        browser: ["Mac OS", "Safari", "15.0"] 
+        browser: ["Saeed Render Bot", "Chrome", "1.0.0"]
     });
 
     if (!sock.authState.creds.registered) {
         const myNumber = "967770179625"; 
         setTimeout(async () => {
             try {
-                let pairingCode = await sock.requestPairingCode(myNumber);
-                pairingCode = pairingCode?.match(/.{1,4}/g)?.join("-") || pairingCode;
-                console.log("\n🚀 كود الربط: " + pairingCode + "\n");
-            } catch (err) { console.log("❌ خطأ: " + err.message); }
-        }, 6000);
+                let code = await sock.requestPairingCode(myNumber);
+                code = code?.match(/.{1,4}/g)?.join("-") || code;
+                console.log("\n" + "=".repeat(30));
+                console.log("✅ كود الربط لـ Render هو: " + code);
+                console.log("=".repeat(30) + "\n");
+            } catch (err) { console.log("خطأ: " + err.message); }
+        }, 8000);
     }
 
     sock.ev.on('creds.update', saveCreds);
@@ -45,25 +54,16 @@ async function startSaeedBot() {
         const from = msg.key.remoteJid;
         const text = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
 
-        if (text === '.قائمة' || text === '.اوامر') {
-            await sock.sendMessage(from, { text: '🌟 هلا سعيد! البوت شغال الآن بنسبة 100% ولن يتوقف.' });
-        }
-        if (text === '.فحص') {
-            await sock.sendMessage(from, { text: '✅ البوت مستيقظ ويعمل!' });
+        if (text === '.قائمة') {
+            await sock.sendMessage(from, { text: '🌟 هلا سعيد! البوت شغال الآن من سيرفر ريندر بنجاح.' });
         }
     });
 
     sock.ev.on('connection.update', (update) => {
         const { connection } = update;
-        if (connection === 'open') {
-            console.log('\n✅ تم الاتصال! البوت الآن نشط ولن يغلق.\n');
-        } else if (connection === 'close') {
-            startSaeedBot();
-        }
+        if (connection === 'open') console.log('🚀 البوت متصل ومستقر على ريندر!');
+        else if (connection === 'close') startSaeedBot();
     });
-
-    // --- السطر السحري لمنع السيرفر من الإغلاق ---
-    setInterval(() => { }, 1000 * 60 * 60); 
 }
 
 startSaeedBot();
