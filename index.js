@@ -8,11 +8,10 @@
 //   𝑺𝒂𝒆𝒆𝒅 𝑩𝒐𝒕 🛡️ - ربط عبر رقم الهاتف
 // ====================================================
 
-const { default: makeWASocket, useMultiFileAuthState } = require('@whiskeysockets/baileys');
+const { default: makeWASocket, useMultiFileAuthState, jidDecode } = require('@whiskeysockets/baileys');
 const pino = require('pino');
 
 async function startSaeedBot() {
-    // هنا نطلب من البوت القراءة مباشرة من مجلد session الذي أنشأناه
     const { state, saveCreds } = await useMultiFileAuthState('./session');
 
     const sock = makeWASocket({
@@ -26,17 +25,26 @@ async function startSaeedBot() {
 
     sock.ev.on('connection.update', ({ connection }) => {
         if (connection === 'open') {
-            console.log('🚀 أخيراً! البوت متصل الآن وشغال يا سعيد.');
+            console.log('✅ البوت متصل ومستعد لاستقبال الرسائل...');
         } else if (connection === 'close') {
             startSaeedBot();
         }
     });
 
-    sock.ev.on('messages.upsert', async ({ messages }) => {
+    // هذا الجزء هو المسؤول عن الرد
+    sock.ev.on('messages.upsert', async ({ messages, type }) => {
+        if (type !== 'notify') return;
         const msg = messages[0];
         if (!msg.message || msg.key.fromMe) return;
-        if (msg.message.conversation === '.فحص') {
-            await sock.sendMessage(msg.key.remoteJid, { text: 'شغال يا غالي! ✅' });
+
+        // استخراج نص الرسالة سواء كانت في الخاص أو المجموعات
+        const text = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
+        const from = msg.key.remoteJid;
+
+        console.log(`📩 رسالة جديدة من ${from}: ${text}`); // سيظهر هذا في الـ Logs عند وصول أي رسالة
+
+        if (text.startsWith('.فحص')) {
+            await sock.sendMessage(from, { text: 'أنا شغال يا سعيد وموجود! ✅' });
         }
     });
 }
