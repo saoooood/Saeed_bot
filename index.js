@@ -8,45 +8,72 @@
 //   𝑺𝒂𝒆𝒆𝒅 𝑩𝒐𝒕 🛡️ - ربط عبر رقم الهاتف
 // ====================================================
 
-const { default: makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
+const { default: makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion, makeCacheableSignalKeyStore } = require('@whiskeysockets/baileys');
 const pino = require('pino');
-const { Pastebin } = require('pastebin-js'); // أو الطريقة اللي استخرجت بها السشن
+const fs = require('fs');
+const path = require('path');
+
+// وظيفة لفك تشفير سشن KnightBot
+async function decodeSession() {
+    const sessionId = process.env.SESSION_ID;
+    if (!sessionId) return null;
+    
+    // إزالة كلمة KnightBot! إذا كانت موجودة وتحويل النص المشفر إلى ملف
+    const cleanedSession = sessionId.replace(/KnightBot!/g, "");
+    const sessionPath = path.join(__dirname, 'session');
+    if (!fs.existsSync(sessionPath)) fs.mkdirSync(sessionPath);
+    
+    // فك التشفير (بناءً على نظام KnightBot المشهور)
+    try {
+        const decodedData = Buffer.from(cleanedSession, 'base64').toString('utf-8');
+        fs.writeFileSync(path.join(sessionPath, 'creds.json'), decodedData);
+        console.log("✅ تم فك تشفير السشن بنجاح!");
+    } catch (e) {
+        console.log("❌ خطأ في تنسيق السشن: تأكد من نسخه كاملاً.");
+    }
+}
 
 async function startSaeedBot() {
-    // هنا الكود سيبحث عن SESSION_ID في إعدادات GitHub
-    const sessionID = process.env.SESSION_ID; 
+    await decodeSession(); // تشغيل فك التشفير أولاً
 
     const { state, saveCreds } = await useMultiFileAuthState('./session');
     const { version } = await fetchLatestBaileysVersion();
 
     const sock = makeWASocket({
         version,
-        auth: state,
+        auth: {
+            creds: state.creds,
+            keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' }))
+        },
         logger: pino({ level: 'silent' }),
-        browser: ["Saeed_Bot", "Chrome", "1.0.0"]
+        browser: ["Saeed Bot", "Chrome", "1.0.0"]
     });
 
-    // إذا كان السشن موجود، سيتصل مباشرة
     sock.ev.on('creds.update', saveCreds);
 
     sock.ev.on('connection.update', (update) => {
-        const { connection } = update;
+        const { connection, lastDisconnect } = update;
         if (connection === 'open') {
-            console.log('🚀 مبروك يا سعيد! البوت متصل الآن باستخدام الـ Session.');
+            console.log('\n=====================================');
+            console.log('🚀 البوت شغال الآن يا سعيد! جرب أرسل كلمة (.قائمة)');
+            console.log('=====================================\n');
         } else if (connection === 'close') {
+            console.log('🔄 جاري إعادة الاتصال...');
             startSaeedBot();
         }
     });
 
-    // أوامر البوت
     sock.ev.on('messages.upsert', async ({ messages }) => {
         const msg = messages[0];
         if (!msg.message || msg.key.fromMe) return;
         const from = msg.key.remoteJid;
         const text = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
 
-        if (text === '.قائمة') {
-            await sock.sendMessage(from, { text: '🌟 أهلاً سعيد! البوت شغال بالـ Session ID بنجاح.' });
+        if (text === '.قائمة' || text === '.اوامر') {
+            await sock.sendMessage(from, { text: '🌟 هلا سعيد! البوت متصل بالكامل ومستعد لخدمتك.' });
+        }
+        if (text === '.فحص') {
+            await sock.sendMessage(from, { text: '✅ البوت مستجيب وشغال 100%' });
         }
     });
 }
