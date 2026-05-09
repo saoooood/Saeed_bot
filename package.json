@@ -7,16 +7,10 @@
     "start": "node index.js"
   },
   "dependencies": {
-    "@whiskeysockets/baileys": "latest",
     "@google/generative-ai": "latest",
-    "@hapi/boom": "^10.0.1",
-    "axios": "^1.6.0",
-    "chalk": "^4.1.2",
-    "pino": "^8.0.0",
-    "node-cache": "^5.1.2",
-    "pastebin-js": "latest",
-    "crypto": "^1.0.1",
-    "qrcode-terminal": "^0.12.0",
-    "dotenv": "^16.0.0"
-  }
+    "@whiskeysockets/baileys": "latest",
+    "@hapi/boom": "latest",
+    "pino": "latest",
+    "chalk": "^4.1.2"
+  },
 }
