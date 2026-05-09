@@ -7,7 +7,6 @@
 // ====================================================
 //   𝑺𝒂𝒆𝒆𝒅 𝑩𝒐𝒕 🛡️ - ربط عبر رقم الهاتف
 // ====================================================
-
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const { Boom } = require("@hapi/boom");
 const pino = require("pino");
@@ -21,13 +20,12 @@ const {
   Browsers
 } = require("@whiskeysockets/baileys");
 
-// استدعاء ملفات الإعدادات والمعالج
 const settings = require("./settings");
-const handler = require("./commands/handler"); // استدعاء الملف كاملاً
+const handler = require("./commands/handler");
 
-// إعداد Gemini
+// إصلاح اسم الموديل لتجنب خطأ 404
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const aiModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+const aiModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" }); 
 
 async function startSaeedBot() {
   try {
@@ -40,7 +38,15 @@ async function startSaeedBot() {
       printQRInTerminal: true,
       browser: Browsers.macOS("Desktop"),
       auth: state,
-      syncFullHistory: false
+      syncFullHistory: false,
+      // إضافة هذه الإعدادات لتحسين فك تشفير الرسائل
+      patchMessageBeforeSending: (message) => {
+          const requiresPatch = !!(message.buttonsMessage || message.templateMessage || message.listMessage);
+          if (requiresPatch) {
+              message = { viewOnceMessage: { message: { messageContextInfo: { deviceListMetadata: {}, deviceListMetadataVersion: 2 }, ...message } } };
+          }
+          return message;
+      }
     });
 
     sock.ev.on("creds.update", saveCreds);
@@ -50,25 +56,27 @@ async function startSaeedBot() {
         const mek = chatUpdate.messages[0];
         if (!mek?.message || mek.key.fromMe) return;
 
-        // --- محاولة استخراج النص بدلاً من الاعتماد على smsg الخارجي ---
         const from = mek.key.remoteJid;
         const text = mek.message.conversation || 
                      mek.message.extendedTextMessage?.text || 
-                     mek.message.imageMessage?.caption || 
-                     "";
+                     mek.message.imageMessage?.caption || "";
 
-        // --- ميزة الذكاء الاصطناعي Gemini ---
+        // --- نظام الذكاء الاصطناعي المصحح ---
         const isAI = settings.aiTrigger.some(t => text.toLowerCase().startsWith(t.toLowerCase()));
         if (isAI && settings.aiEnabled) {
           const prompt = text.replace(/بوت|سعيد|saeed/gi, "").trim();
           if (prompt) {
-            const result = await aiModel.generateContent(prompt);
-            return await sock.sendMessage(from, { text: result.response.text() });
+            try {
+                const result = await aiModel.generateContent(prompt);
+                const response = await result.response;
+                return await sock.sendMessage(from, { text: response.text() });
+            } catch (aiErr) {
+                console.log(chalk.red("Gemini Error:"), aiErr.message);
+            }
           }
         }
 
-        // --- تشغيل أوامر السورس الأصلية ---
-        // نمرر chatUpdate مباشرة للمعالج وهو سيتكفل بالباقي داخلياً
+        // --- تشغيل الأوامر الأصلية مثل .ادمن ---
         if (typeof handler === 'function') {
             await handler(sock, mek, chatUpdate);
         } else if (handler.handleMessages) {
@@ -76,14 +84,14 @@ async function startSaeedBot() {
         }
 
       } catch (err) {
-        console.log(chalk.red("خطأ:"), err.message);
+        console.log(chalk.red("خطأ في معالجة الرسالة:"), err.message);
       }
     });
 
     sock.ev.on("connection.update", (update) => {
       const { connection, lastDisconnect } = update;
       if (connection === "open") {
-        console.log(chalk.green("\n✅ تم الاتصال! بوت سعيد الذبحاني شغال الآن.\n"));
+        console.log(chalk.green("\n✅ تم الاتصال! بوت سعيد الضحباني جاهز الآن.\n"));
       }
       if (connection === "close") {
         const shouldReconnect = (new Boom(lastDisconnect?.error)?.output?.statusCode) !== DisconnectReason.loggedOut;
@@ -92,9 +100,10 @@ async function startSaeedBot() {
     });
 
   } catch (err) {
-    console.error(chalk.red("خطأ في التشغيل:"), err.message);
+    console.error(chalk.red("خطأ في بدء البوت:"), err.message);
     setTimeout(startSaeedBot, 5000);
   }
 }
 
 startSaeedBot();
+
