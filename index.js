@@ -11,8 +11,12 @@
 const { default: makeWASocket, useMultiFileAuthState, Browsers } = require('@whiskeysockets/baileys');
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const pino = require('pino');
-const { smsg } = require('./handler');
+const { smsg } = require('./Commands/handler'); // تعديل المسار ليدخل مجلد Commands
 const settings = require('./settings');
+// ... باقي الكود ...
+
+// وتأكد من تعديل سطر التشغيل في الأسفل أيضاً:
+require('./Commands/handler')(sock, msg, chatUpdate, m);
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
