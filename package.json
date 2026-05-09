@@ -8,10 +8,10 @@
   },
   "dependencies": {
     "@whiskeysockets/baileys": "latest",
+    "@google/generative-ai": "^0.11.0",
     "pino": "^8.0.0",
     "pastebin-js": "latest",
     "crypto": "^1.0.1",
     "qrcode-terminal": "^0.12.0"
   }
 }
-
