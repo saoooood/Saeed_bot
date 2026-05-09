@@ -22,22 +22,24 @@ const {
 const settings = require("./settings");
 const handler = require("./commands/handler");
 
-// استخدام API Key من البيئة المحيطة
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const aiModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); 
 
 async function startSaeedBot() {
   try {
     const { version } = await fetchLatestBaileysVersion();
-    // تغيير اسم المجلد لفرض جلسة جديدة ونظيفة
-    const { state, saveCreds } = await useMultiFileAuthState("./saeed_auth");
+    // استخدام اسم مجلد جديد لضمان بداية نظيفة
+    const { state, saveCreds } = await useMultiFileAuthState("./saeed_v3_auth");
 
     const sock = makeWASocket({
       version,
       logger: pino({ level: "silent" }),
-      browser: Browsers.macOS("Desktop"),
+      browser: Browsers.macOS("Desktop"), // استخدام متصفح ثابت
       auth: state,
-      syncFullHistory: false
+      syncFullHistory: false,
+      connectTimeoutMs: 60000,
+      defaultQueryTimeoutMs: 0,
+      keepAliveIntervalMs: 10000
     });
 
     sock.ev.on("creds.update", saveCreds);
@@ -45,17 +47,22 @@ async function startSaeedBot() {
     sock.ev.on("connection.update", (update) => {
       const { connection, lastDisconnect, qr } = update;
       
-      if (qr) console.log(chalk.magenta("📸 كود QR جديد متاح في السجلات، يرجى مسحه."));
+      if (qr) {
+        console.log(chalk.magenta("📸 كود QR متاح الآن، يرجى مسحه للربط."));
+      }
 
       if (connection === "open") {
-        console.log(chalk.green("\n✅ تم الاتصال! بوت سعيد الذبحاني يعمل الآن بكفاءة.\n"));
+        console.log(chalk.green("\n✅ تم الاتصال بنجاح! بوت سعيد الذبحاني جاهز للعمل.\n"));
       }
 
       if (connection === "close") {
         const reason = new Boom(lastDisconnect?.error)?.output?.statusCode;
+        console.log(chalk.red(`🔄 انقطع الاتصال (الرمز: ${reason}). جاري المحاولة بعد قليل...`));
+
         if (reason !== DisconnectReason.loggedOut) {
-            console.log(chalk.yellow("🔄 جاري إعادة المحاولة..."));
-            setTimeout(startSaeedBot, 5000);
+          setTimeout(startSaeedBot, 5000);
+        } else {
+          console.log(chalk.bgRed("❌ تم تسجيل الخروج، يرجى إعادة الربط بالـ QR."));
         }
       }
     });
@@ -63,7 +70,6 @@ async function startSaeedBot() {
     sock.ev.on("messages.upsert", async (chatUpdate) => {
       try {
         const mek = chatUpdate.messages[0];
-        // تجاهل الرسائل التي تفشل في التشفير (Bad MAC) لتجنب الانهيار
         if (!mek?.message || mek.key.fromMe) return;
 
         const from = mek.key.remoteJid;
@@ -83,7 +89,6 @@ async function startSaeedBot() {
 
         if (typeof handler === 'function') await handler(sock, mek, chatUpdate);
       } catch (err) {
-        // في حال خطأ التشفير، لا نطبع الخطأ كاملاً لتجنب زحمة السجلات
         if (!err.message.includes("Bad MAC")) console.log(err);
       }
     });
@@ -94,3 +99,4 @@ async function startSaeedBot() {
 }
 
 startSaeedBot();
+
