@@ -23,7 +23,6 @@ const {
 const settings = require("./settings");
 const handler = require("./commands/handler");
 
-// إعداد Gemini
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const aiModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); 
 
@@ -53,7 +52,6 @@ async function startSaeedBot() {
                      mek.message.extendedTextMessage?.text || 
                      mek.message.imageMessage?.caption || "";
 
-        // --- نظام الذكاء الاصطناعي ---
         const isAI = settings.aiTrigger.some(t => text.toLowerCase().startsWith(t.toLowerCase()));
         if (isAI && settings.aiEnabled) {
           const prompt = text.replace(/بوت|سعيد|saeed/gi, "").trim();
@@ -68,7 +66,6 @@ async function startSaeedBot() {
           }
         }
 
-        // --- تشغيل الأوامر الأصلية ---
         if (typeof handler === 'function') {
             await handler(sock, mek, chatUpdate);
         } else if (handler.handleMessages) {
@@ -83,7 +80,6 @@ async function startSaeedBot() {
     sock.ev.on("connection.update", (update) => {
       const { connection, lastDisconnect } = update;
       if (connection === "open") {
-        // تم تعديل الاسم هنا يا سعيد الذبحاني
         console.log(chalk.green("\n✅ تم الاتصال! بوت سعيد الذبحاني جاهز الآن.\n"));
       }
       if (connection === "close") {
@@ -99,8 +95,3 @@ async function startSaeedBot() {
 }
 
 startSaeedBot();
-
-}
-
-startSaeedBot();
-
