@@ -58,7 +58,7 @@ const settings = {
   `.trim(),
 
   // ===== مفاتيح API =====
-  openaiKey: process.env.OPENAI_API_KEY || "",
+  geminiKey: process.env.GEMINI_API_KEY || "",
   giphyKey: "qnl7ssQChTdPjsKta2Ax2LMaGXz303tq",
 };
 
