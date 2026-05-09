@@ -21,11 +21,11 @@ const {
   Browsers
 } = require("@whiskeysockets/baileys");
 
-// استدعاء ملفات الإعدادات والمعالج من مجلد commands الصغير
+// استدعاء ملفات الإعدادات والمعالج
 const settings = require("./settings");
-const { handleMessages, smsg } = require("./commands/handler");
+const handler = require("./commands/handler"); // استدعاء الملف كاملاً
 
-// إعداد Gemini باستخدام المفتاح من الـ Secrets مباشرة
+// إعداد Gemini
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const aiModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
@@ -50,10 +50,12 @@ async function startSaeedBot() {
         const mek = chatUpdate.messages[0];
         if (!mek?.message || mek.key.fromMe) return;
 
-        // تحويل الرسالة لصيغة مفهومة للمعالج
-        const m = smsg(sock, mek);
-        const text = (m.body || "").trim();
-        const from = m.from;
+        // --- محاولة استخراج النص بدلاً من الاعتماد على smsg الخارجي ---
+        const from = mek.key.remoteJid;
+        const text = mek.message.conversation || 
+                     mek.message.extendedTextMessage?.text || 
+                     mek.message.imageMessage?.caption || 
+                     "";
 
         // --- ميزة الذكاء الاصطناعي Gemini ---
         const isAI = settings.aiTrigger.some(t => text.toLowerCase().startsWith(t.toLowerCase()));
@@ -61,23 +63,27 @@ async function startSaeedBot() {
           const prompt = text.replace(/بوت|سعيد|saeed/gi, "").trim();
           if (prompt) {
             const result = await aiModel.generateContent(prompt);
-            const response = await result.response;
-            return await sock.sendMessage(from, { text: response.text() });
+            return await sock.sendMessage(from, { text: result.response.text() });
           }
         }
 
         // --- تشغيل أوامر السورس الأصلية ---
-        await handleMessages(sock, chatUpdate);
+        // نمرر chatUpdate مباشرة للمعالج وهو سيتكفل بالباقي داخلياً
+        if (typeof handler === 'function') {
+            await handler(sock, mek, chatUpdate);
+        } else if (handler.handleMessages) {
+            await handler.handleMessages(sock, chatUpdate);
+        }
 
       } catch (err) {
-        console.log(chalk.red("خطأ في معالجة الرسالة:"), err.message);
+        console.log(chalk.red("خطأ:"), err.message);
       }
     });
 
     sock.ev.on("connection.update", (update) => {
       const { connection, lastDisconnect } = update;
       if (connection === "open") {
-        console.log(chalk.green("\n✅ تم الاتصال بنجاح! بوت سعيد الضحباني جاهز الآن.\n"));
+        console.log(chalk.green("\n✅ تم الاتصال! بوت سعيد الذبحاني شغال الآن.\n"));
       }
       if (connection === "close") {
         const shouldReconnect = (new Boom(lastDisconnect?.error)?.output?.statusCode) !== DisconnectReason.loggedOut;
@@ -86,7 +92,7 @@ async function startSaeedBot() {
     });
 
   } catch (err) {
-    console.error(chalk.red("خطأ في بدء البوت:"), err.message);
+    console.error(chalk.red("خطأ في التشغيل:"), err.message);
     setTimeout(startSaeedBot, 5000);
   }
 }
