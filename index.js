@@ -22,81 +22,75 @@ const {
 const settings = require("./settings");
 const handler = require("./commands/handler");
 
+// إعداد Gemini
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const aiModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); 
+const aiModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
 async function startSaeedBot() {
-  try {
-    const { version } = await fetchLatestBaileysVersion();
-    // استخدام اسم مجلد جديد لضمان بداية نظيفة
-    const { state, saveCreds } = await useMultiFileAuthState("./saeed_v3_auth");
+  // استخدام مجلد جديد للجلسة لضمان طلب الكود
+  const { state, saveCreds } = await useMultiFileAuthState("./saeed_pairing_session");
+  const { version } = await fetchLatestBaileysVersion();
 
-    const sock = makeWASocket({
-      version,
-      logger: pino({ level: "silent" }),
-      browser: Browsers.macOS("Desktop"), // استخدام متصفح ثابت
-      auth: state,
-      syncFullHistory: false,
-      connectTimeoutMs: 60000,
-      defaultQueryTimeoutMs: 0,
-      keepAliveIntervalMs: 10000
-    });
+  const sock = makeWASocket({
+    version,
+    logger: pino({ level: "silent" }),
+    auth: state,
+    browser: Browsers.macOS("Desktop"), 
+    syncFullHistory: false
+  });
 
-    sock.ev.on("creds.update", saveCreds);
-
-    sock.ev.on("connection.update", (update) => {
-      const { connection, lastDisconnect, qr } = update;
-      
-      if (qr) {
-        console.log(chalk.magenta("📸 كود QR متاح الآن، يرجى مسحه للربط."));
-      }
-
-      if (connection === "open") {
-        console.log(chalk.green("\n✅ تم الاتصال بنجاح! بوت سعيد الذبحاني جاهز للعمل.\n"));
-      }
-
-      if (connection === "close") {
-        const reason = new Boom(lastDisconnect?.error)?.output?.statusCode;
-        console.log(chalk.red(`🔄 انقطع الاتصال (الرمز: ${reason}). جاري المحاولة بعد قليل...`));
-
-        if (reason !== DisconnectReason.loggedOut) {
-          setTimeout(startSaeedBot, 5000);
-        } else {
-          console.log(chalk.bgRed("❌ تم تسجيل الخروج، يرجى إعادة الربط بالـ QR."));
-        }
-      }
-    });
-
-    sock.ev.on("messages.upsert", async (chatUpdate) => {
+  // --- نظام طلب كود الربط التلقائي لرقمك ---
+  if (!sock.authState.creds.registered) {
+    const myNumber = "967770179625"; // رقمك يا سعيد
+    console.log(chalk.cyan(`\n🚀 جاري طلب كود الربط للرقم: ${myNumber}`));
+    
+    // تأخير بسيط لضمان جاهزية الاتصال قبل طلب الكود
+    setTimeout(async () => {
       try {
-        const mek = chatUpdate.messages[0];
-        if (!mek?.message || mek.key.fromMe) return;
-
-        const from = mek.key.remoteJid;
-        const text = mek.message.conversation || 
-                     mek.message.extendedTextMessage?.text || 
-                     mek.message.imageMessage?.caption || "";
-
-        const isAI = settings.aiTrigger.some(t => text.toLowerCase().startsWith(t.toLowerCase()));
-        if (isAI && settings.aiEnabled) {
-          try {
-            const result = await aiModel.generateContent(text.replace(/بوت|سعيد/gi, "").trim());
-            return await sock.sendMessage(from, { text: result.response.text() });
-          } catch (e) {
-            console.log(chalk.red("AI Error:"), e.message);
-          }
-        }
-
-        if (typeof handler === 'function') await handler(sock, mek, chatUpdate);
+        const code = await sock.requestPairingCode(myNumber);
+        console.log(chalk.black.bgGreen(`\n كود الربط الخاص بك هو: ${code} \n`));
+        console.log(chalk.white("افتح واتساب > الأجهزة المرتبطة > ربط جهاز > الربط برقم الهاتف وأدخل الكود أعلاه."));
       } catch (err) {
-        if (!err.message.includes("Bad MAC")) console.log(err);
+        console.log(chalk.red("خطأ في طلب الكود: "), err.message);
       }
-    });
-
-  } catch (err) {
-    setTimeout(startSaeedBot, 10000);
+    }, 3000);
   }
+
+  sock.ev.on("creds.update", saveCreds);
+
+  sock.ev.on("connection.update", (update) => {
+    const { connection, lastDisconnect } = update;
+    if (connection === "open") {
+      console.log(chalk.green("\n✅ تم الاتصال بنجاح! بوت سعيد الذبحاني جاهز الآن.\n"));
+    }
+    if (connection === "close") {
+      const reason = new Boom(lastDisconnect?.error)?.output?.statusCode;
+      if (reason !== DisconnectReason.loggedOut) {
+        setTimeout(startSaeedBot, 5000);
+      }
+    }
+  });
+
+  sock.ev.on("messages.upsert", async (chatUpdate) => {
+    try {
+      const mek = chatUpdate.messages[0];
+      if (!mek?.message || mek.key.fromMe) return;
+      
+      const from = mek.key.remoteJid;
+      const text = mek.message.conversation || mek.message.extendedTextMessage?.text || "";
+
+      // استجابة الذكاء الاصطناعي (Gemini)
+      const isAI = settings.aiTrigger.some(t => text.toLowerCase().startsWith(t.toLowerCase()));
+      if (isAI && settings.aiEnabled) {
+         try {
+           const result = await aiModel.generateContent(text.replace(/بوت|سعيد/gi, "").trim());
+           await sock.sendMessage(from, { text: result.response.text() });
+         } catch (e) { console.log(chalk.red("AI Error: "), e.message); }
+      }
+
+      if (typeof handler === 'function') await handler(sock, mek, chatUpdate);
+    } catch (e) { console.log(e); }
+  });
 }
 
 startSaeedBot();
-
