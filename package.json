@@ -1,7 +1,7 @@
 {
   "name": "saeed-bot",
   "version": "1.0.0",
-  "description": "بوت سعيد الذبحاني - تطوير يامي بوت",
+  "description": " بوت سعيد - بوت واتساب متكامل بأكثر من 600 أمر",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
@@ -16,7 +16,7 @@
     "file-type": "^16.5.4",
     "fluent-ffmpeg": "^2.1.2",
     "fs-extra": "^11.2.0",
-    "jimp": "^0.22.10",
+    "jimp": "^1.6.0", 
     "libphonenumber-js": "^1.10.53",
     "moment": "^2.29.4",
     "node-cache": "^5.1.2",
